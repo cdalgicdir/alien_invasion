@@ -7,6 +7,7 @@ from pygame.constants import KEYDOWN, MOUSEBUTTONDOWN
 
 from alien import Alien
 from bullet import Bullet
+from bomb import Bomb
 from settings import Settings
 from ship import Ship
 from game_stats import GameStats
@@ -28,6 +29,7 @@ class AlienInvasion:
 
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
+        self.bombs = pygame.sprite.Group()
         self.aliens = pygame.sprite.Group()
         self._create_fleet()
         self.play_button = Button(self, "Play")
@@ -61,13 +63,19 @@ class AlienInvasion:
             if self.stats.game_active:
                 self.ship.update()
                 self._update_bullets()
+                self._update_bombs()
                 self._update_aliens()
                 self._remove_bullets_outside_screen()
+                self._remove_bombs_outside_screen()
             self._update_screen()
 
     def _update_bullets(self):
         self.bullets.update()
         self._check_bullet_alien_collision()
+
+    def _update_bombs(self):
+        self.bombs.update()
+        self._check_bomb_alien_collision()
     
     def _check_bullet_alien_collision(self):
 
@@ -78,12 +86,23 @@ class AlienInvasion:
         if not self.aliens:
             self.bullets.empty()
             self._create_fleet()
+
+    def _check_bomb_alien_collision(self):
+
+        collisions = pygame.sprite.groupcollide(
+            self.bombs, self.aliens, True, True
+        )
+
+        if not self.aliens:
+            self.bombs.empty()
+            self._create_fleet()
     
     def _ship_hit(self):
         if self.stats.ships_left > 0:
             self.stats.ships_left -= 1
             self.aliens.empty()
             self.bullets.empty()
+            self.bombs.empty()
 
             self._create_fleet()
             self.ship.reset_pos()
@@ -122,6 +141,11 @@ class AlienInvasion:
             if bullet.rect.bottom <= 0:
                 self.bullets.remove(bullet)
 
+    def _remove_bombs_outside_screen(self):
+        for bomb in self.bombs.copy():
+            if bomb.rect.bottom <= 0:
+                self.bombs.remove(bomb)
+
     def _check_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -158,6 +182,8 @@ class AlienInvasion:
             sys.exit()
         elif event.key == pygame.K_h:
             self.ship.reset_pos()
+        elif event.key == pygame.K_l:
+            self._fire_bomb()
         elif event.key == pygame.K_SPACE:
             self._fire_bullet()
     
@@ -165,6 +191,11 @@ class AlienInvasion:
         if len(self.bullets) < self.settings.bullets_allowed:
             new_bullet = Bullet(self)
             self.bullets.add(new_bullet)
+
+    def _fire_bomb(self):
+        if len(self.bombs) < self.settings.bombs_allowed:
+            new_bomb = Bomb(self)
+            self.bombs.add(new_bomb)
     
     def _check_keyup_events(self, event):
         if event.key == pygame.K_RIGHT:
@@ -181,6 +212,8 @@ class AlienInvasion:
         self.ship.blitme()
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
+        for bomb in self.bombs.sprites():
+            bomb.draw_bomb()
         self.aliens.draw(self.screen)
 
         if not self.stats.game_active:
